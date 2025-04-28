@@ -26,7 +26,8 @@ def create_connection_and_table(host, user, password, dbname):
             host=host,
             user=user,
             password=password,
-            dbname=dbname
+            dbname=dbname,
+            connect_timeout=5
         )
 
         print(f"connected to {host}")
