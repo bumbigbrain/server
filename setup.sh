@@ -1,14 +1,12 @@
 #!/bin/bash
 
+#!/bin/bash
+set -e  # Exit on any error
 
-sudo apt update -y
-sudo apt upgrade -y
-
-sudo apt install python3-venv uvicorn stress-ng -y
-
+# Create and activate virtual environment
 python3 -m venv venv
-
 source venv/bin/activate
 
+# Install requirements
 pip install -r requirements.txt
 
