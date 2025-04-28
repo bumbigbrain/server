@@ -1,4 +1,8 @@
 #!/bin/bash
+
+
+su - ubuntu -c 'cd /home/ubuntu/ && git clone https://github.com/bumbigbrain/server.git'
+
 cat > /home/ubuntu/server/.env << 'EOF'
 PRIMARY_DB_ENDPOINT=""
 PRIMARY_DB_USER=postgres
@@ -16,4 +20,4 @@ MINIO_ACCESS_KEY=access_key
 MINIO_SECRET_KEY=secret_key
 EOF
 
-su - ubuntu -c 'cd /home/ubuntu/server && ./run.sh'
+su - ubuntu -c 'cd /home/ubuntu/server && source setup.sh && ./run.sh'
