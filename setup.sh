@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#!/bin/bash
 set -e  # Exit on any error
 
 # Create and activate virtual environment
