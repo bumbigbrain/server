@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI
+from minio import Minio
 from dotenv import load_dotenv
 import subprocess
 import psycopg2
@@ -18,6 +19,32 @@ secondary_db_user = os.getenv("SECONDARY_DB_USER", "postgres")
 secondary_db_password = os.getenv("SECONDARY_DB_PASSWORD", "postgres")
 secondary_db_name = os.getenv("SECONDARY_DB_NAME")
 
+
+minio_endpoint = os.getenv("MINIO_ENDPOINT")
+minio_port = os.getenv("MINIO_PORT", "9001")
+minio_access_key = os.getenv("MINIO_ACCESS_KEY")
+minio_secret_key = os.getenv("MINIO_SECRET_KEY")
+
+
+# Initialize the client
+try:
+    client = Minio(
+        f"{minio_endpoint}:{minio_port}",       # MinIO server URL
+        access_key=minio_access_key, # Your access key
+        secret_key=minio_secret_key, # Your secret key
+        secure=False             # True if using HTTPS
+    )
+    print("Connected to minio server.")
+except:
+    print("Cannot connect to minio server.")
+
+# Check if a bucket exists
+bucket_name = "my-bucket"
+if not client.bucket_exists(bucket_name):
+    client.make_bucket(bucket_name)
+
+
+print(f"Bucket '{bucket_name}' is ready!")
 
 def create_connection_and_table(host, user, password, dbname):
 
@@ -47,55 +74,105 @@ secondary_conn = create_connection_and_table(
     secondary_endpoint, secondary_db_user, secondary_db_password, secondary_db_name
 )
 
+
+
+
+def is_connected_to_db(db: str = None):
+    conn = primary_conn if db == "primary" else secondary_conn
+    try:
+        res = ""
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1;")
+            res = cur.fetchone()
+
+        if res[0] != 1:
+            return False
+    except:
+        return False
+    
+    return True
+
+
 app = FastAPI()
 
 @app.get("/hello-world")
-async def helloWorld():
+async def helloWorld(student_id: str = None):
+    
+    file_path = f"{student_id} server-connection 1"
+    # Create the file
+    with open(file_path, 'w') as f:
+        pass  # just create an empty file
+
+    print(f"{file_path} created successfully!")
+
+    client.fput_object(
+        bucket_name,
+        f"check_dir/{file_path}",
+        file_path,
+    )
+
+    print("File uploaded successfully!")
+    
     return {"message":"Hello World!!"}
 
 
-
 @app.get("/test-primary")
-async def testPrimary():
-    try:
-        res = ""
-        with primary_conn.cursor() as cur:
-            cur.execute("SELECT 1;")
-            res = cur.fetchone()
+async def testPrimary(student_id: str = None):
+    if is_connected_to_db("primary"):
+        file_path = f"{student_id} primary-connection 1"
+        # Create the file
+        with open(file_path, 'w') as f:
+            pass  # just create an empty file
 
-        if res[0] != 1:
-            return "Cannot ping primary db"
-    except:
-        return "Cannot ping primary db"
+        print(f"{file_path} created successfully!")
 
-    return "Ping primary db successfully"
+        client.fput_object(
+            bucket_name,
+            f"check_dir/{file_path}",
+            file_path,
+        )
 
+        print("File uploaded successfully!")
+        
+        return {"message": "Ping Primary DB Successfully."}
+    else:
+        return {"message":"Can not connect to Primary DB."}
+    
 
 @app.get("/test-secondary")
 async def testSecondary():
-    try:
-        res = ""
-        with secondary_conn.cursor() as cur:
-            cur.execute("SELECT 1;")
-            res = cur.fetchone()
+    if is_connected_to_db("secondary"):
+        file_path = f"{student_id} secondary-connection 1"
+        # Create the file
+        with open(file_path, 'w') as f:
+            pass  # just create an empty file
 
-        if res[0] != 1:
-            return "Cannot ping secondary db"
-    except:
-        return "Cannot ping secondary db"
+        print(f"{file_path} created successfully!")
 
-    return "Ping secondary db successfully"
+        client.fput_object(
+            bucket_name,
+            f"check_dir/{file_path}",
+            file_path,
+        )
 
+        print("File uploaded successfully!")
+        
+        return {"message": "Ping Secondary DB Successfully."}
+    else:
+        return {"message": "Cannot connect to Secondary DB."}
+    
 
 
 @app.get("/test-load")
-async def testLoad():
+async def testLoad(time_out_min: str = None):
     # Basic stress-ng command
+
+    time_out_sec = int(time_out_min * 60)
     command = [
         "stress-ng",
         "--cpu", "4",         # 4 CPU workers
         "--cpu-load", "80",    # 80% load
-        "--timeout", "60s"     # Run for 60 seconds
+        f"--timeout", "{time_out_sec}s"     # Run for 60 seconds
     ]
 
     # Run the command
@@ -104,4 +181,52 @@ async def testLoad():
     except subprocess.CalledProcessError as e:
         print(f"Error running stress-ng: {e}")
 
+
+@app.get("/check-autoscaling")
+async def checkAutoscaling(student_id: str = None):
+    bucket_name = "my-bucket"
+    prefix = "test-dir/"
+
+    # List and count objects
+    count = 0
+    for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True):
+        count += 1
+    
+    if count > 1:
+        file_path = f"{student_id} auto-scaling 1"
+        # Create the file
+        with open(file_path, 'w') as f:
+            pass  # just create an empty file
+
+        print(f"{file_path} created successfully!")
+
+        client.fput_object(
+            bucket_name,
+            f"check_dir/{file_path}",
+            file_path,
+        )
+
+        print("File uploaded successfully!")
+        
+
+@app.get("/scores")
+async def checkScore(student_id: str = None):
+    bucket_name = "my-bucket"
+    prefix = "check-dir/"
+
+    res = {
+        f"{student_id}": {
+            "server-connection": 0,
+            "primary-connection": 0,
+            "secondary-connection": 0,
+            "auto-scaling": 0
+        }
+    }
+     
+    # List objects
+    for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True):
+        topic = obj.object_name.split()[1]
+        res[student_id][topic] = 1
+            
+    return res
 
