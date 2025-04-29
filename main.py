@@ -97,8 +97,12 @@ app = FastAPI()
 
 @app.get("/hello-world")
 async def helloWorld(student_id: str = None):
+
+    if student_id is None:
+        return {"message": "Please identify your student_id"}
+        
     
-    file_path = f"{student_id} server-connection 1"
+    file_path = f"{student_id}_server-connection_1"
     # Create the file
     with open(file_path, 'w') as f:
         pass  # just create an empty file
@@ -118,8 +122,12 @@ async def helloWorld(student_id: str = None):
 
 @app.get("/test-primary")
 async def testPrimary(student_id: str = None):
+    
+    if student_id is None:
+        return {"message": "Please identify your student_id"}
+    
     if is_connected_to_db("primary"):
-        file_path = f"{student_id} primary-connection 1"
+        file_path = f"{student_id}_primary-connection_1"
         # Create the file
         with open(file_path, 'w') as f:
             pass  # just create an empty file
@@ -140,9 +148,13 @@ async def testPrimary(student_id: str = None):
     
 
 @app.get("/test-secondary")
-async def testSecondary():
+async def testSecondary(student_id: str = None):
+    
+    if student_id is None:
+        return {"message": "Please identify your student_id"}
+    
     if is_connected_to_db("secondary"):
-        file_path = f"{student_id} secondary-connection 1"
+        file_path = f"{student_id}_secondary-connection_1"
         # Create the file
         with open(file_path, 'w') as f:
             pass  # just create an empty file
@@ -164,7 +176,7 @@ async def testSecondary():
 
 
 @app.get("/test-load")
-async def testLoad(time_out_min: str = None):
+async def testLoad(time_out_min: str = 1):
     # Basic stress-ng command
 
     time_out_sec = int(time_out_min * 60)
@@ -172,7 +184,7 @@ async def testLoad(time_out_min: str = None):
         "stress-ng",
         "--cpu", "4",         # 4 CPU workers
         "--cpu-load", "80",    # 80% load
-        f"--timeout", "{time_out_sec}s"     # Run for 60 seconds
+        "--timeout", f"{time_out_sec}s"     # Run for 60 seconds
     ]
 
     # Run the command
@@ -184,16 +196,23 @@ async def testLoad(time_out_min: str = None):
 
 @app.get("/check-autoscaling")
 async def checkAutoscaling(student_id: str = None):
+    
+    if student_id is None:
+        return {"message": "Please identify your student_id"}
+    
     bucket_name = "my-bucket"
-    prefix = "test-dir/"
 
     # List and count objects
     count = 0
-    for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True):
+    for obj in client.list_objects(bucket_name, recursive=True):
+        splited_object_name = obj.object_name.split("/")
+        dir = splited_object_name[0]  
+        if dir != "test_dir":
+            continue
         count += 1
     
     if count > 1:
-        file_path = f"{student_id} auto-scaling 1"
+        file_path = f"{student_id}_auto-scaling_1"
         # Create the file
         with open(file_path, 'w') as f:
             pass  # just create an empty file
@@ -211,8 +230,11 @@ async def checkAutoscaling(student_id: str = None):
 
 @app.get("/scores")
 async def checkScore(student_id: str = None):
+    
+    if student_id is None:
+        return {"message": "Please identify your student_id"}
+    
     bucket_name = "my-bucket"
-    prefix = "check-dir/"
 
     res = {
         f"{student_id}": {
@@ -224,9 +246,16 @@ async def checkScore(student_id: str = None):
     }
      
     # List objects
-    for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True):
-        topic = obj.object_name.split()[1]
+    for obj in client.list_objects(bucket_name, recursive=True):
+        splited_object_name = obj.object_name.split("/")
+        dir = splited_object_name[0]  
+        if dir != "check_dir":
+            continue
+        
+        object_name = splited_object_name[1].split("_")
+        topic = object_name[1]
         res[student_id][topic] = 1
+        
             
     return res
 
