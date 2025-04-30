@@ -13,7 +13,8 @@
 
 ## What You Are Allowed to Modify
 
-- You are allowed to modify `user-data.sh`, particularly to update ENV variables and pass them as user-data script.
+- You are allowed to modify `user-data.sh`, particularly to update ENV variables.
+- You are allowed to pass `user-data.sh` as a user-data to launch EC2.
 
 
 
