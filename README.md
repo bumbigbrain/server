@@ -17,5 +17,12 @@
 - You are allowed to pass `user-data.sh` as a user-data to launch EC2.
 
 
+## Note
+
+- This application run on `port 8000`
+- You can set health-check path as `/docs`
+
+
+
 
 
